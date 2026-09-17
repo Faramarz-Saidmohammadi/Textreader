@@ -30,7 +30,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
       - run: npm install
       - run: psql "$DATABASE_URL" -f db/001_init.sql
       - run: npm run typecheck

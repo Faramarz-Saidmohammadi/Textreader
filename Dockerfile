@@ -6,6 +6,9 @@ RUN npm install
 FROM node:22-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+# Build-time placeholders satisfy strict environment validation. Runtime values are injected by the deployment platform.
+ENV DATABASE_URL=postgres://build:build@127.0.0.1:5432/build
+ENV SESSION_SECRET=build-only-placeholder-session-secret-32chars
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
