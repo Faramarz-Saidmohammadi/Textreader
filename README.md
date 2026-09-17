@@ -1,81 +1,160 @@
-# VoiceBridge
+# Voxora
 
-VoiceBridge is an accessible browser-based communication board and text-to-speech application built with semantic HTML, modern CSS, and vanilla JavaScript. It provides quick phrase cards and a configurable speech workspace without requiring accounts, servers, or external APIs.
+**Multi-tenant voice accessibility SaaS built as a senior-level full-stack portfolio project.**
 
-## Highlights
+Voxora is a workspace-based platform for teams that need governed reusable communication phrases, browser-native text-to-speech, role-aware collaboration, auditability, usage tracking, and an API/billing-ready domain model.
 
-- Responsive communication board with 12 ready-to-use phrases
-- Search and category filtering for faster access
-- Browser-native text-to-speech using the Web Speech API
-- Voice selection with adjustable rate and pitch
-- Custom message composer with keyboard shortcut support
-- Stop/cancel speech controls and live status feedback
-- Accessible focus states, semantic controls, skip navigation, and reduced-motion support
-- Privacy-friendly client-side architecture with no backend dependency
+> This repository is a complete architectural replacement of an earlier browser text-to-speech demo. The current product is intentionally structured as a SaaS system rather than a UI exercise.
 
-## Tech stack
+## Product capabilities
 
-- HTML5
-- CSS3
-- Vanilla JavaScript
-- Web Speech API
+- Multi-tenant workspaces and memberships
+- OWNER / ADMIN / EDITOR / VIEWER RBAC
+- Secure password authentication with Node.js `scrypt`
+- Signed HttpOnly eight-hour sessions using HMAC-SHA256
+- Workspace-scoped phrase library
+- Browser-native text-to-speech playback
+- Searchable phrase operations UI
+- Server-side input validation with Zod
+- Transactional audit logging for mutations
+- Usage-event, API-key, and subscription domain boundaries
+- Health endpoint for runtime dependency checks
+- PostgreSQL constraints and tenant-aware indexes
+- Docker/Compose local environment
+- GitHub Actions CI for type checking, tests, and production build
+- Architecture, API, and security documentation
 
-## Project structure
+## Stack
+
+| Layer | Technology |
+| --- | --- |
+| Web | Next.js 16.3, React 19.2, App Router |
+| Language | TypeScript (strict) |
+| Data | PostgreSQL 17 + `postgres` client |
+| Validation | Zod |
+| Authentication | scrypt password hashing + signed HttpOnly cookie |
+| Authorization | Explicit server-side RBAC permissions |
+| Voice | Browser Web Speech API |
+| Testing | Vitest |
+| Operations | Docker, Docker Compose, GitHub Actions |
+
+Next.js 16 is used deliberately: the project follows the current App Router generation and avoids legacy `pages/` or deprecated `next lint` patterns.
+
+## Architecture
 
 ```text
-.
-├── index.html      # Semantic application shell
-├── style.css       # Responsive UI and accessibility styles
-├── app.js          # Phrase filtering and speech-synthesis logic
-└── img/            # Communication-card imagery
+Browser
+  ├─ Marketing / Login / Dashboard (Next.js App Router)
+  ├─ Web Speech API (speech remains browser-side)
+  └─ Route Handlers
+       ├─ Session verification
+       ├─ RBAC authorization
+       ├─ Zod validation
+       ├─ Domain services
+       └─ PostgreSQL
+            ├─ users / memberships / workspaces
+            ├─ phrases / collections
+            ├─ usage_events
+            ├─ audit_logs
+            ├─ api_keys
+            └─ subscriptions
 ```
 
-## Run locally
+The central tenancy rule is simple: **tenant identity comes from the verified server session, never from client-controlled request data.** See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-No build step or package installation is required.
+## Local setup
 
-1. Clone the repository.
-2. Open `index.html` in a modern browser.
-3. For the most consistent experience, serve the folder through a local development server.
-
-Example with VS Code Live Server or any static HTTP server:
+### 1. Configure environment
 
 ```bash
-npx serve .
+cp .env.example .env.local
 ```
 
-## Usage
+Use a random production-grade `SESSION_SECRET` outside local development.
 
-1. Select a phrase card to speak it aloud.
-2. Use search or category filters to narrow the board.
-3. Choose a system voice and adjust rate or pitch.
-4. Write a custom message and select **Speak message**.
-5. Press **Ctrl+Enter** (or **Cmd+Enter** on macOS) from the message field to speak quickly.
+### 2. Start PostgreSQL
 
-## Browser support
+```bash
+docker compose up -d db
+```
 
-VoiceBridge depends on the Web Speech API. Available voices, languages, and speech quality vary by browser and operating system. Chromium-based browsers generally provide the broadest support.
+The container automatically applies `db/001_init.sql` on first initialization.
 
-## Accessibility notes
+### 3. Install and seed
 
-The interface is designed for keyboard navigation and includes semantic form controls, visible focus treatment, descriptive button labels, live speech status messaging, a skip link, and a reduced-motion fallback. Accessibility should still be validated with real users and assistive technologies before production use in clinical or high-stakes contexts.
+```bash
+npm install
+npm run db:seed
+```
 
-## Privacy
+### 4. Run the application
 
-VoiceBridge does not include analytics, authentication, a backend, or application-level network requests. Speech processing behavior ultimately depends on the browser/operating-system speech engine selected by the user.
+```bash
+npm run dev
+```
 
-## Roadmap
+Open `http://localhost:3000`.
 
-- User-defined phrase collections
-- Phrase favorites and recent history
-- Import/export of communication boards
-- Localization and multilingual board presets
-- Installable PWA mode and offline caching
+Demo credentials after seeding:
 
-## Author
+```text
+Email: owner@voxora.dev
+Password: VoxoraDemo!2026
+```
 
-Developed and maintained by **Faramarz Said Mohammadi**.
+These credentials are development seed data only.
+
+## Quality gates
+
+```bash
+npm run typecheck
+npm test
+npm run build
+```
+
+The CI workflow runs the same checks against PostgreSQL on pull requests and pushes to `main`.
+
+## Security choices
+
+- No plaintext passwords are stored.
+- Session cookies are HttpOnly and signed.
+- Mutating routes authorize on the server even if the UI already hides restricted controls.
+- All tenant queries derive `workspaceId` from the verified session.
+- SQL values are parameterized.
+- Phrase creation and its audit record are transactional.
+- Environment configuration is validated before database use.
+
+See [`SECURITY.md`](SECURITY.md) for production-hardening requirements.
+
+## Why this is a senior portfolio project
+
+The repository demonstrates more than CRUD screens. It includes tenant boundaries, authentication design, authorization policy, relational modeling, transactional writes, auditability, API contracts, validation, infrastructure, CI, security documentation, and a credible scale path. Product and engineering boundaries are explicit so additional features can be added without rewriting the core.
+
+## Planned product extensions
+
+- Workspace invitations and multi-workspace switching
+- Phrase publishing workflow and version history
+- External API-key issuance, scopes, rotation, and rate limits
+- Stripe customer/subscription synchronization and signed webhooks
+- Usage dashboards with aggregated metrics
+- Export/import workflows
+- MFA and verified-email flows
+- Playwright end-to-end coverage
+- Localization and RTL support
+
+## Repository structure
+
+```text
+app/            Next.js routes, dashboard, and API handlers
+components/     Interactive client components
+lib/            database, session, RBAC, and domain helpers
+db/             PostgreSQL schema
+scripts/        local seed tooling
+tests/          unit tests
+docs/           architecture and API documentation
+.github/        CI workflow
+```
 
 ## License
 
-This repository does not currently declare an open-source license. All rights remain with the repository owner unless a license is added later.
+MIT — see [`LICENSE`](LICENSE).

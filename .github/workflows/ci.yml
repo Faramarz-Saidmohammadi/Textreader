@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: voxora
+          POSTGRES_USER: voxora
+          POSTGRES_PASSWORD: voxora
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U voxora -d voxora"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://voxora:voxora@localhost:5432/voxora
+      SESSION_SECRET: ci-session-secret-with-more-than-32-characters
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: psql "$DATABASE_URL" -f db/001_init.sql
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
